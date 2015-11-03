@@ -26,5 +26,5 @@ This has been tested successfully in the following browsers:
 Standards documentation
 -----------------------
 
-* https://drafts.csswg.org/css-snappoints/
+* http://www.w3.org/TR/css-snappoints-1/
 * http://blog.gospodarets.com/css-scroll-snap/

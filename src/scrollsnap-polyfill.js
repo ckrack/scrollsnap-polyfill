@@ -109,6 +109,7 @@
         }, 30);
         // ok, really jump. hope this fires between those 30ms
         obj.scrollTop = snapPoint;
+
         // TODO: implement smooth scrolling here... maybe with a callback to re-bind the scroll event listener
 
         scrollStart = snapPoint;
