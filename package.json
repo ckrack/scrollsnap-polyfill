@@ -1,0 +1,37 @@
+{
+  "name": "scrollsnap-polyfill",
+  "version": "0.0.1",
+  "authors": [
+    {
+      "name": "Clemens Krack",
+      "email": "ckrack@gmail.com",
+      "url": "http://clemenskrack.com"
+    }
+  ],
+  "devDependencies": {
+    "browser-sync": "^2.9.11",
+    "gulp": "^3.8.11",
+    "gulp-concat": "^2.5.2",
+    "gulp-uglify": "^1.2.0"
+  },
+  "description": "Polyfill for css scroll snap behaviour",
+  "main": "dist/scrollsnap.polyfill.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ckrack/scrollsnap-polyfill.git"
+  },
+  "keywords": [
+    "scroll-snap",
+    "scroll",
+    "scrollsnapping",
+    "polyfill"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ckrack/scrollsnap-polyfill/issues"
+  },
+  "homepage": "https://github.com/ckrack/scrollsnap-polyfill#readme"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "scrollsnap-polyfill",
+  "description": "Polyfill for scroll-snap behavior",
+  "version": "0.1.0",
+  "main": "dist/scrollsnap-polyfill.js",
+  "authors": [
+    {
+      "name": "Clemens Krack",
+      "email": "ckrack@gmail.com",
+      "url": "http://clemenskrack.com"
+    }
+  ],
+  "license": "https://github.com/ckrack/scrollsnap-polyfill/blob/master/LICENSE",
+  "keywords": [
+    "scroll-snap",
+    "scroll",
+    "scrollsnapping",
+    "polyfill"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules"
+  ],
+  "dependencies": {}
+}
