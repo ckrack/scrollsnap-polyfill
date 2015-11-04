@@ -90,7 +90,7 @@
       scrollStart = evt.target.scrollTop;
     }
 
-    // set a 50ms timeout for every scroll event.
+    // set a 30ms timeout for every scroll event.
     // if we have new scroll events in that time, the previous timeouts are cleared.
     // thus we can be sure that the timeout will be called 50ms after the last scroll event.
     timeOutId = setTimeout(function(){
@@ -102,18 +102,13 @@
         // before doing the move, unbind the event handler
         obj.removeEventListener('scroll', handler, false);
 
-        // re-bind the eventlistener after 30ms
-        setTimeout(function() {
-          // this allows us to jump without throwing scroll events ourselves.
-          obj.addEventListener('scroll', handler, false);
-        }, 30);
         // ok, really jump. hope this fires between those 30ms
-        obj.scrollTop = snapPoint;
-
-        // TODO: implement smooth scrolling here... maybe with a callback to re-bind the scroll event listener
+        smoothScroll(snapPoint, null, function() {
+          obj.addEventListener('scroll', handler, false);
+        }, obj);
 
         scrollStart = snapPoint;
-    }, 50);
+    }, 30);
   };
 
   /**
@@ -163,11 +158,65 @@
   }
 
   /**
+   * smooth scrolling by: https://github.com/alicelieutier/smoothScroll
+   */
+  // ease in out function thanks to:
+  // http://blog.greweb.fr/2012/02/bezier-curve-based-easing-functions-from-concept-to-implementation/
+    var easeInOutCubic = function(t) {
+        return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
+    };
+
+  // calculate the scroll position we should be in
+  // given the start and end point of the scroll
+  // the time elapsed from the beginning of the scroll
+  // and the total duration of the scroll (default 500ms)
+  var position = function(start, end, elapsed, duration) {
+      if (elapsed > duration) return end;
+      return start + (end - start) * easeInOutCubic(elapsed / duration); // <-- you can change the easing funtion there
+      // return start + (end - start) * (elapsed / duration); // <-- this would give a linear scroll
+  };
+
+  // we use requestAnimationFrame to be called by the browser before every repaint
+  // if the first argument is numeric then scroll to this location
+  // if the callback exist, it is called when the scrolling is finished
+  // if context is set then scroll that element, else scroll window
+  var smoothScroll = function(end, duration, callback, context){
+      // TODO calculate duration based on max-distance/distance
+      duration = duration || 200;
+      context = context || window;
+      var start = context.scrollTop;
+
+      var clock = Date.now();
+      var requestAnimationFrame = window.requestAnimationFrame ||
+          window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame ||
+          function(fn){window.setTimeout(fn, 15);};
+
+      var step = function(){
+          var elapsed = Date.now() - clock;
+          if (context !== window) {
+            context.scrollTop = position(start, end, elapsed, duration);
+          }
+          else {
+            window.scroll(0, position(start, end, elapsed, duration));
+          }
+
+          if (elapsed > duration) {
+              if (typeof callback === 'function') {
+                  callback(end);
+              }
+          } else {
+              requestAnimationFrame(step);
+          }
+      };
+      step();
+  };
+
+  /**
    * Polyfill object
    * @type Polyfill
    * @see https://github.com/philipwalton/polyfill
    */
-  var pf = Polyfill({
+  var pf = new Polyfill({
     declarations:["*scroll-snap-type:*", "*scroll-snap-point-y:*"]
   })
   .doMatched(doMatched)
