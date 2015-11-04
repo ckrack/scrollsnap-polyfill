@@ -10,6 +10,15 @@
    */
 
   /**
+   * constraint to jumping to the next snap-point.
+   * when scrolling further than SNAP_CONSTRAINT snap-points,
+   * but the current distance is less than 0.87 (read: 13 percent),
+   * the snap-will go back to the closer snap-point.
+   */
+  var CONSTRAINT = 0.87,
+      SNAP_CONSTRAINT = 2;
+
+  /**
    * Feature detect scroll-snap-type, if it exists then do nothing (return)
    */
   if ('scrollSnapType' in doc.documentElement.style ||
@@ -102,11 +111,13 @@
         // before doing the move, unbind the event handler
         obj.removeEventListener('scroll', handler, false);
 
-        // ok, really jump. hope this fires between those 30ms
-        smoothScroll(snapPoint, null, function() {
+        // smoothly move to the snap point
+        smoothScroll(obj, snapPoint, null, function() {
+          // after moving to the snap point, rebind the scroll event handler
           obj.addEventListener('scroll', handler, false);
-        }, obj);
+        });
 
+        // we just jumped to the snapPoint, so this will be our next scrollStart
         scrollStart = snapPoint;
     }, 30);
   };
@@ -143,9 +154,10 @@
       limit = obj.offsetHeight;
     }
 
-    // constrain jumping to a point too high/low when scrolling for more than one points. (if the point is 85% further than we are, don't jump..)
-    if ((Math.abs(initialPoint - currentPoint) > 2) ||
-         Math.abs(nextPoint - currentPoint) > 0.85) {
+    // constrain jumping to a point too high/low when scrolling for more than SBAP_CONSTRAINT points.
+    // (if the point is 85% further than we are, don't jump..)
+    if ((Math.abs(initialPoint - currentPoint) > SNAP_CONSTRAINT) ||
+         Math.abs(nextPoint - currentPoint) > CONSTRAINT) {
       // we still need to round...
       nextPoint = Math.round(currentPoint);
     }
@@ -158,33 +170,45 @@
   }
 
   /**
-   * smooth scrolling by: https://github.com/alicelieutier/smoothScroll
+   * ease in out function thanks to:
+   * http://blog.greweb.fr/2012/02/bezier-curve-based-easing-functions-from-concept-to-implementation/
+   * @param  {Number} t timing
+   * @return {Number}   easing factor
    */
-  // ease in out function thanks to:
-  // http://blog.greweb.fr/2012/02/bezier-curve-based-easing-functions-from-concept-to-implementation/
     var easeInOutCubic = function(t) {
         return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
     };
 
-  // calculate the scroll position we should be in
-  // given the start and end point of the scroll
-  // the time elapsed from the beginning of the scroll
-  // and the total duration of the scroll (default 500ms)
+
+  /**
+   * calculate the scroll position we should be in
+   * @param  {Number} start    the start point of the scroll
+   * @param  {Number} end      the end point of the scroll
+   * @param  {Number} elapsed  the time elapsed from the beginning of the scroll
+   * @param  {Number} duration the total duration of the scroll (default 500ms)
+   * @return {Number}          [description]
+   */
   var position = function(start, end, elapsed, duration) {
       if (elapsed > duration) return end;
       return start + (end - start) * easeInOutCubic(elapsed / duration); // <-- you can change the easing funtion there
       // return start + (end - start) * (elapsed / duration); // <-- this would give a linear scroll
   };
 
-  // we use requestAnimationFrame to be called by the browser before every repaint
-  // if the first argument is numeric then scroll to this location
-  // if the callback exist, it is called when the scrolling is finished
-  // if context is set then scroll that element, else scroll window
-  var smoothScroll = function(end, duration, callback, context){
+
+  /**
+   * smoothScroll plugin by Alice Lietieur.
+   * @see https://github.com/alicelieutier/smoothScroll
+   * we use requestAnimationFrame to be called by the browser before every repaint
+   * @param  {Object}   obj      the scroll context
+   * @param  {Number}  end      where to scroll to
+   * @param  {Number}   duration scroll duration
+   * @param  {Function} callback called when the scrolling is finished
+   */
+  var smoothScroll = function(obj, end, duration, callback){
       // TODO calculate duration based on max-distance/distance
       duration = duration || 200;
-      context = context || window;
-      var start = context.scrollTop;
+      obj = obj || window;
+      var start = obj.scrollTop;
 
       var clock = Date.now();
       var requestAnimationFrame = window.requestAnimationFrame ||
@@ -193,8 +217,8 @@
 
       var step = function(){
           var elapsed = Date.now() - clock;
-          if (context !== window) {
-            context.scrollTop = position(start, end, elapsed, duration);
+          if (obj !== window) {
+            obj.scrollTop = position(start, end, elapsed, duration);
           }
           else {
             window.scroll(0, position(start, end, elapsed, duration));
