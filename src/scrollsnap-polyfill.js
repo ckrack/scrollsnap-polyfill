@@ -27,8 +27,8 @@
           declaration = rule.getDeclaration();
       [].forEach.call(elements, function(obj) {
         setUpElement(obj, declaration);
-      })
-    })
+      });
+    });
   }
 
   /**
@@ -41,8 +41,8 @@
       [].forEach.call(elements, function(item) {
         obj.removeEventListener('scroll', handler, false);
         delete obj._scsnp_declaration;
-      })
-    })
+      });
+    });
   }
 
   /**
@@ -114,7 +114,7 @@
 
         scrollStart = snapPoint;
     }, 50);
-  }
+  };
 
   /**
    * calculator for next snap-point
@@ -122,7 +122,7 @@
    * @param  {integer} direction signed integer indicating the scroll direction
    * @return {[type]}           [description]
    */
-  var getNextSnapPoint = function(obj, direction) {
+  function getNextSnapPoint(obj, direction) {
 
     // TODO replace this with a correct calc based on the declaration.
 
@@ -131,19 +131,21 @@
 
     // calc current and initial snappoint
     var currentPoint = obj.scrollTop / vh,
-        initialPoint = scrollStart / vh;
+        initialPoint = scrollStart / vh,
+        nextPoint,
+        // minimum is top of element
+        limit = 0;
 
     // set target and bounds by direction
     if (direction === -1) {
       // when we go up, we floor the number to jump to the next snap-point in scroll direction
-      var nextPoint = Math.floor(currentPoint),
-          // minimum is top of element
-          limit = 0;
+      nextPoint = Math.floor(currentPoint);
     } else {
       // go down, we ceil the number to jump to the next in view.
-      var nextPoint = Math.ceil(currentPoint),
-          // maximum is container height
-          limit = obj.offsetHeight;
+      nextPoint = Math.ceil(currentPoint);
+
+      // maximum is container height
+      limit = obj.offsetHeight;
     }
 
     // constrain jumping to a point too high/low when scrolling for more than one points. (if the point is 85% further than we are, don't jump..)
