@@ -9,14 +9,31 @@
    * undefined: undefined
    */
 
-  /**
-   * constraint to jumping to the next snap-point.
-   * when scrolling further than SNAP_CONSTRAINT snap-points,
-   * but the current distance is less than 0.87 (read: 13 percent),
-   * the snap-will go back to the closer snap-point.
-   */
+    /**
+     * constraint to jumping to the next snap-point.
+     * when scrolling further than SNAP_CONSTRAINT snap-points,
+     * but the current distance is less than 0.87 (read: 13 percent),
+     * the snap-will go back to the closer snap-point.
+     */
   var CONSTRAINT = 0.87,
-      SNAP_CONSTRAINT = 2;
+      /**
+       * when scrolling for more than SNAP_CONSTRAINT snap points,
+       * a constraint is applied for scrolling to snap points in the distance.
+       * @type {Number}
+       */
+      SNAP_CONSTRAINT = 2,
+      /**
+       * time after which scrolling is considered finished.
+       * the scroll timeouts are timed with this.
+       * whenever a new scroll event is triggered, the previous timeout is deleted.
+       * @type {Number}
+       */
+      SCROLL_TIMEOUT = 40,
+      /**
+       * turn debugging on/off
+       * @type {Boolean}
+       */
+      DEBUG = true;
 
   /**
    * Feature detect scroll-snap-type, if it exists then do nothing (return)
@@ -31,6 +48,7 @@
    * @param  {array} rules rules found for the polyfill
    */
   function doMatched(rules) {
+
     rules.each(function(rule) {
       var elements = doc.querySelectorAll(rule.getSelectors()),
           declaration = rule.getDeclaration();
@@ -45,11 +63,11 @@
    * @param  {[type]} rules [description]
    */
   function undoUnmatched(rules) {
+
     rules.each(function(rule) {
       var elements = doc.querySelectorAll(rule.getSelectors());
       [].forEach.call(elements, function(item) {
-        obj.removeEventListener('scroll', handler, false);
-        delete obj._scsnp_declaration;
+        tearDownElement(item);
       });
     });
   }
@@ -60,11 +78,29 @@
    * @param {Object} declaration CSS declarations
    */
   function setUpElement(obj, declaration) {
-    // if (obj.tagName.toLowerCase === "body") {
-    // bind to document.scroll
-    // }
+    if (DEBUG) console.log('[Scrollsnap] setting up object: '+obj, declaration);
+    // if the scroll snap attributes are applied on the body/html tag, use the doc for scroll events.
+    var tag = obj.tagName;
+    if (tag.toLowerCase() == "body" ||
+        tag.toLowerCase() == "html") {
+      obj = doc;
+    }
+
     obj.addEventListener('scroll', handler, false);
+    // save declaration
     obj._scsnp_declaration = declaration;
+  }
+
+  function tearDownElement(obj) {
+    if (DEBUG) console.log('[Scrollsnap] tearing down object: '+obj, declaration);
+    // if the scroll snap attributes are applied on the body/html tag, use the doc for scroll events.
+    var tag = obj.tagName;
+    if (tag.toLowerCase() == "body" ||
+        tag.toLowerCase() == "html") {
+      obj = doc;
+    }
+    obj.removeEventListener('scroll', handler, false);
+    delete obj._scsnp_declaration;
   }
 
   /**
@@ -84,9 +120,12 @@
    * this is the callback for scroll events.
    */
   var handler = function(evt) {
-
     // use evt.target as target-element
-    var obj = evt.target;
+    var obj = evt.target,
+        scrollObj = getScrollObj(obj);
+
+    if (DEBUG) console.log('[Scrollsnap] scroll event on '+evt.target+'. start:'+scrollStart+' end:'+scrollObj.scrollTop);
+
 
     // if a previous timeout exists, clear it.
     if (timeOutId) {
@@ -96,30 +135,41 @@
       timeOutId = null;
     } else {
       // save new scroll start
-      scrollStart = evt.target.scrollTop;
+      scrollStart = scrollObj.scrollTop;
+      if (DEBUG) console.log('[Scrollsnap] saving new scroll start: '+scrollStart);
     }
 
     // set a 30ms timeout for every scroll event.
     // if we have new scroll events in that time, the previous timeouts are cleared.
     // thus we can be sure that the timeout will be called 50ms after the last scroll event.
     timeOutId = setTimeout(function(){
-        // detect direction of scroll. negative is up, positive is down.
-        var direction = (scrollStart - obj.scrollTop > 0) ? -1 : 1,
-            // get the next snap-point to snap-to
-            snapPoint = getNextSnapPoint(obj, direction);
+      // if we don't move a thing, we can ignore the timeout: if we did, there'd be another timeout added for scrollStart+1.
+      if(scrollStart == scrollObj.scrollTop) {
+        if (DEBUG) console.log('[Scrollsnap] ignore scroll timeout because not actually moving.');
+        return;
+      }
 
-        // before doing the move, unbind the event handler
-        obj.removeEventListener('scroll', handler, false);
+      // detect direction of scroll. negative is up, positive is down.
+      var direction = (scrollStart - scrollObj.scrollTop > 0) ? -1 : 1,
+          // get the next snap-point to snap-to
+          snapPoint = getNextSnapPoint(scrollObj, obj, obj._scsnp_declaration, direction);
 
-        // smoothly move to the snap point
-        smoothScroll(obj, snapPoint, null, function() {
-          // after moving to the snap point, rebind the scroll event handler
-          obj.addEventListener('scroll', handler, false);
-        });
+      // before doing the move, unbind the event handler
+      obj.removeEventListener('scroll', handler, false);
 
-        // we just jumped to the snapPoint, so this will be our next scrollStart
-        scrollStart = snapPoint;
-    }, 30);
+      if (DEBUG) console.log('[Scrollsnap] called scroll timeout. direction: '+direction+' - snap point: '+snapPoint+'. removed event listener. now smooth scrolling.');
+
+      // smoothly move to the snap point
+      smoothScroll(scrollObj, snapPoint, null, function() {
+        // after moving to the snap point, rebind the scroll event handler
+        obj.addEventListener('scroll', handler, false);
+        if (DEBUG) console.log('[Scrollsnap] re-adding event listener on '+obj);
+      });
+
+      // we just jumped to the snapPoint, so this will be our next scrollStart
+      scrollStart = snapPoint;
+      if (DEBUG) console.log('[Scrollsnap] saving scroll start: '+scrollStart);
+    }, SCROLL_TIMEOUT);
   };
 
   /**
@@ -128,19 +178,15 @@
    * @param  {integer} direction signed integer indicating the scroll direction
    * @return {[type]}           [description]
    */
-  function getNextSnapPoint(obj, direction) {
-
-    // TODO replace this with a correct calc based on the declaration.
-
-    // this can be Nvh, N%, Npx,
-    var vh = Math.max(doc.documentElement.clientHeight, w.innerHeight || 0);
+  function getNextSnapPoint(scrollObj, obj, declaration, direction) {
+    // parse length and unit from declaration
+    var snapLengthUnit = parseSnapPointValue(declaration),
+    snapLength = calcSnapLength(snapLengthUnit, obj);
 
     // calc current and initial snappoint
-    var currentPoint = obj.scrollTop / vh,
-        initialPoint = scrollStart / vh,
-        nextPoint,
-        // minimum is top of element
-        limit = 0;
+    var currentPoint = scrollObj.scrollTop / snapLength,
+        initialPoint = scrollStart / snapLength,
+        nextPoint;
 
     // set target and bounds by direction
     if (direction === -1) {
@@ -149,9 +195,6 @@
     } else {
       // go down, we ceil the number to jump to the next in view.
       nextPoint = Math.ceil(currentPoint);
-
-      // maximum is container height
-      limit = obj.offsetHeight;
     }
 
     // constrain jumping to a point too high/low when scrolling for more than SBAP_CONSTRAINT points.
@@ -163,11 +206,83 @@
     }
 
     // calculate where to scroll
-    var scrollTo = nextPoint * vh;
+    var scrollTo = nextPoint * snapLength;
+    if (DEBUG) console.log('[Scrollsnap] should scroll to:'+scrollTo);
 
-    // stay in bounds
-    return Math.max(scrollTo, limit);
+    // stay in bounds (minimum: 0, maxmimum: absolute height)
+    return Math.max(Math.min(scrollTo, getScrollHeight(scrollObj)), 0);
   }
+
+  /**
+   * parse snap point value from declaration.
+   * this uses regexp..
+   * @param  {Object} declaration
+   * @return {Object} returns an Object with the value and unit of the snap-point-y declaration
+   */
+  function parseSnapPointValue(declaration) {
+    if (DEBUG) console.log('[Scrollsnap] parse declaration:', declaration);
+
+    // run a regex to parse lengths
+    var regex = /repeat\((\d+)(px|vh|vw|%)\)/g,
+    result = regex.exec(declaration['scroll-snap-points-y']);
+
+    // if regexp fails, value is null
+    if (result === null) {
+      return null;
+    }
+
+    // return calling the function to calculate actual length of one snap.
+    return {value: result[1], unit: result[2]};
+  }
+
+  /**
+   * calc length of one snap
+   * @param  {Object} snapLengthUnit [description]
+   * @param  {Object} obj
+   * @return {Object}                [description]
+   */
+  function calcSnapLength(snapLengthUnit, obj) {
+    if (snapLengthUnit.unit == 'vh') {
+      // when using vh, one snap is the length of vh / 100 * value
+      return Math.max(doc.documentElement.clientHeight, w.innerHeight || 0) / 100 * snapLengthUnit.value;
+    } else if (snapLengthUnit.unit == '%') {
+      // when using %, one snap is the length of element height / 100 * value
+      return getHeight(obj) / 100 * snapLengthUnit.value;
+    } else {
+      // when using px, one snap is the length of element height / value
+      return getHeight(obj) / snapLengthUnit.value;
+    }
+
+    return 1;
+  }
+
+  /**
+   * get an elements scrollHeight
+   * @param  {Object} obj
+   * @return {Number}
+   */
+  function getScrollHeight(obj) {
+    if (DEBUG) console.log('[Scrollsnap] scrollheight:'+obj.scrollHeight);
+    return obj.scrollHeight;
+  }
+
+  function getHeight(obj) {
+    return obj.offsetHeight;
+  }
+
+  /**
+   * return the element scrolling values are applied to.
+   * when receiving window.onscroll events, the actual scrolling is on the body.
+   * @param  {Object} obj
+   * @return {Object}
+   */
+  function getScrollObj(obj) {
+    if (obj == doc || obj == w) {
+      return doc.querySelector('body');
+    }
+    return obj;
+  }
+
 
   /**
    * ease in out function thanks to:
@@ -207,7 +322,6 @@
   var smoothScroll = function(obj, end, duration, callback){
       // TODO calculate duration based on max-distance/distance
       duration = duration || 200;
-      obj = obj || window;
       var start = obj.scrollTop;
 
       var clock = Date.now();
@@ -217,12 +331,7 @@
 
       var step = function(){
           var elapsed = Date.now() - clock;
-          if (obj !== window) {
-            obj.scrollTop = position(start, end, elapsed, duration);
-          }
-          else {
-            window.scroll(0, position(start, end, elapsed, duration));
-          }
+          obj.scrollTop = position(start, end, elapsed, duration);
 
           if (elapsed > duration) {
               if (typeof callback === 'function') {
