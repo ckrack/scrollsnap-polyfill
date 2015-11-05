@@ -1,8 +1,12 @@
 'use strict';
 
 var gulp = require('gulp'),
+    gutil = require('gulp-util'),
+    plumber = require('gulp-plumber'),
+    notifier = require('node-notifier'),
     uglify = require('gulp-uglify'),
     concat = require('gulp-concat'),
+    stripDebug = require('gulp-strip-debug'),
     browserSync = require('browser-sync'),
     reload = browserSync.reload,
     project = require('./package.json');
@@ -12,17 +16,33 @@ var paths = {
   dist: '.dist/' + project.name + '.js',
   vendor: './vendor/**/*.js',
   output: './dist'
-}
+};
 
 
 gulp.task('build:unbundled', function() {
   return gulp.src(paths.src)
+    .pipe(plumber({errorHandler: function (err) {
+      gutil.log(
+        gutil.colors.red("Sass compile error:"),
+        err.message
+      );
+
+      notifier.notify({ title: 'Error in Task "build:unbundled"', message: err.message });
+    }}))
     .pipe(uglify())
     .pipe(gulp.dest(paths.output));
 });
 
 gulp.task('build:bundled', function() {
   return gulp.src([ paths.vendor, paths.src ])
+    .pipe(plumber({errorHandler: function (err) {
+      gutil.log(
+        gutil.colors.red("Sass compile error:"),
+        err.message
+      );
+
+      notifier.notify({ title: 'Error in Task "build:bundled"', message: err.message });
+    }}))
     .pipe(concat(project.name + '.bundled.js'))
     .pipe(uglify())
     .pipe(gulp.dest(paths.output))
@@ -46,6 +66,14 @@ gulp.task('browser-sync', function () {
       baseDir: ['.', 'demo']
     }
   });
+});
+
+
+
+gulp.task('dist', ['build'], function () {
+    return gulp.src(paths.output+'/**/*.js')
+        .pipe(stripDebug())
+        .pipe(gulp.dest(paths.output));
 });
 
 // build: generates uglified version
