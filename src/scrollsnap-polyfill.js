@@ -87,6 +87,7 @@
    */
   function setUpElement(obj, declaration) {
     if (DEBUG) console.log('[Scrollsnap] setting up object: '+obj, declaration);
+
     // if the scroll snap attributes are applied on the body/html tag, use the doc for scroll events.
     var tag = obj.tagName;
     if (tag.toLowerCase() == "body" ||
@@ -97,6 +98,12 @@
     obj.addEventListener('scroll', handler, false);
     // save declaration
     obj._scsnp_declaration = declaration;
+
+    // TODO: speed up the calculations.
+    // save length, recalc length on resize.
+    // but this would not take element resizing into account.
+    // if the container element resizes, the length would have to change.
+    // so maybe parse unit and other stuff and just set a function on the element that calculates the length.
   }
 
   function tearDownElement(obj) {
@@ -211,8 +218,8 @@
       // (if the point is 85% further than we are, don't jump..)
       nextPoint = Math.round(currentPoint);
     } else if ((Math.abs(scrollStart-scrollObj.scrollTop)<10) &&
-	       (Math.abs(initialPoint - currentPoint) < SNAP_CONSTRAINT) &&
-	       (Math.abs(nextPoint - currentPoint) > FIRST_CONSTRAINT)) {
+               (Math.abs(initialPoint - currentPoint) < SNAP_CONSTRAINT) &&
+               (Math.abs(nextPoint - currentPoint) > FIRST_CONSTRAINT)) {
       // constrain jumping to a point too high/low when scrolling just for a few pixels (less than 10 pixels) and (5% of scrollable length)
       nextPoint = Math.round(currentPoint);
       if (DEBUG) console.log('[Scrollsnap] round because of first constraint: ', scrollObj.scrollTop, scrollStart);
@@ -307,6 +314,10 @@
         return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
     };
 
+    var easeInCubic = function(t) {
+      return t*t*t;
+    };
+
 
   /**
    * calculate the scroll position we should be in
@@ -318,13 +329,13 @@
    */
   var position = function(start, end, elapsed, duration) {
       if (elapsed > duration) return end;
-      return start + (end - start) * easeInOutCubic(elapsed / duration); // <-- you can change the easing funtion there
+      return start + (end - start) * easeInCubic(elapsed / duration); // <-- you can change the easing funtion there
       // return start + (end - start) * (elapsed / duration); // <-- this would give a linear scroll
   };
 
 
   /**
-   * smoothScroll plugin by Alice Lietieur.
+   * smoothScroll function by Alice Lietieur.
    * @see https://github.com/alicelieutier/smoothScroll
    * we use requestAnimationFrame to be called by the browser before every repaint
    * @param  {Object}   obj      the scroll context
