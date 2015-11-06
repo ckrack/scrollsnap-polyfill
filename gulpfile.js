@@ -12,8 +12,8 @@ var gulp = require('gulp'),
     project = require('./package.json');
 
 var paths = {
-  src: './src/' + project.name + '.js',
-  dist: '.dist/' + project.name + '.js',
+  src: './src/**/*.js',
+  dist: '.dist/',
   vendor: './vendor/**/*.js',
   output: './dist'
 };
@@ -23,7 +23,7 @@ gulp.task('build:unbundled', function() {
   return gulp.src(paths.src)
     .pipe(plumber({errorHandler: function (err) {
       gutil.log(
-        gutil.colors.red("Sass compile error:"),
+        gutil.colors.red("js compile error:"),
         err.message
       );
 
@@ -59,7 +59,7 @@ gulp.task('watch', function () {
 gulp.task('browser-sync', function () {
   return browserSync.init({
     open: true,
-    port: 3000,
+    port: 3005,
     startPath: 'index.html',
     notify: false,
     server: {
