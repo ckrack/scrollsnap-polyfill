@@ -29,7 +29,13 @@
        * whenever a new scroll event is triggered, the previous timeout is deleted.
        * @type {Number}
        */
-      SCROLL_TIMEOUT = 40,
+      SCROLL_TIMEOUT = 45,
+
+      /**
+       * time for the smooth scrolling
+       * @type {Number}
+       */
+      SCROLL_TIME = 768,
       /**
        * turn debugging on/off
        * @type {Boolean}
@@ -327,7 +333,7 @@
    */
   var smoothScroll = function(obj, end, duration, callback){
       // TODO calculate duration based on max-distance/distance
-      duration = duration || 200;
+      duration = duration || SCROLL_TIME;
       var start = obj.scrollTop;
 
       var clock = Date.now();
