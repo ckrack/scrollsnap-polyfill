@@ -12,10 +12,11 @@
     /**
      * constraint to jumping to the next snap-point.
      * when scrolling further than SNAP_CONSTRAINT snap-points,
-     * but the current distance is less than 0.87 (read: 13 percent),
+     * but the current distance is less than 1-0.15 (read: 15 percent),
      * the snap-will go back to the closer snap-point.
      */
-  var CONSTRAINT = 0.87,
+  var CONSTRAINT = 1-0.18,
+      FIRST_CONSTRAINT = 1-0.05,
       /**
        * when scrolling for more than SNAP_CONSTRAINT snap points,
        * a constraint is applied for scrolling to snap points in the distance.
@@ -197,12 +198,17 @@
       nextPoint = Math.ceil(currentPoint);
     }
 
-    // constrain jumping to a point too high/low when scrolling for more than SBAP_CONSTRAINT points.
-    // (if the point is 85% further than we are, don't jump..)
-    if ((Math.abs(initialPoint - currentPoint) > SNAP_CONSTRAINT) ||
+    if ((Math.abs(initialPoint - currentPoint) >= SNAP_CONSTRAINT) &&
          Math.abs(nextPoint - currentPoint) > CONSTRAINT) {
-      // we still need to round...
+      // constrain jumping to a point too high/low when scrolling for more than SNAP_CONSTRAINT points.
+      // (if the point is 85% further than we are, don't jump..)
       nextPoint = Math.round(currentPoint);
+    } else if ((Math.abs(scrollStart-scrollObj.scrollTop)<10) &&
+	       (Math.abs(initialPoint - currentPoint) < SNAP_CONSTRAINT) &&
+	       (Math.abs(nextPoint - currentPoint) > FIRST_CONSTRAINT)) {
+      // constrain jumping to a point too high/low when scrolling just for a few pixels (less than 10 pixels) and (5% of scrollable length)
+      nextPoint = Math.round(currentPoint);
+      if (DEBUG) console.log('[Scrollsnap] round because of first constraint: ', scrollObj.scrollTop, scrollStart);
     }
 
     // calculate where to scroll
