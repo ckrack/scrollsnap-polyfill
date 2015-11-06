@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>CSS scroll snapping polyfill</title>
+    <style type="text/css" media="screen">
+
+        .container {
+            scroll-snap-type: mandatory;
+            scroll-snap-points-x: repeat(100vw);
+            scroll-behaviour: smooth;
+            overflow: scroll;
+            height: 100vh;
+            width: 100%;
+        }
+
+        html, body, section {
+            padding: 0;
+            margin: 0;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        h1, h2, h3 {
+          margin: 2em auto;
+          text-align: center;
+        }
+
+        section {
+            min-height: 100vh;
+            width: 100%;
+            background: lightsalmon;
+            overflow: hidden;
+            position: relative;
+        }
+
+        section:nth-child(odd) {
+            background: lightseagreen;
+        }
+
+        section:after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          height: 50%;
+          width: 100%;
+          background: linear-gradient(-180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0.40) 100%);
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <section><h1>Section 1</h1></section>
+        <section><h1>Section 2</h1></section>
+        <section><h1>Section 3</h1></section>
+        <section><h1>Section 4</h1></section>
+    </div>
+    <script src="dist/scrollsnap-polyfill.bundled.js"></script>
+</body>
+</html>
