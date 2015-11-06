@@ -47,6 +47,7 @@
    */
   if ('scrollSnapType' in doc.documentElement.style ||
       'webkitScrollSnapType' in doc.documentElement.style) {
+    if (DEBUG) console.log('[Scrollsnap] native support.');
     return;
   }
 
