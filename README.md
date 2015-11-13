@@ -28,3 +28,7 @@ Standards documentation
 
 * http://www.w3.org/TR/css-snappoints-1/
 * http://blog.gospodarets.com/css-scroll-snap/
+
+TODO
+-----------------------
+* Add support for both axis

@@ -105,7 +105,6 @@
    * @param {Object} declaration CSS declarations
    */
   function setUpElement(obj, declaration) {
-
     if (DEBUG) console.log('[Scrollsnap] setting up object: '+obj, declaration);
 
     // if the scroll snap attributes are applied on the body/html tag, use the doc for scroll events.
@@ -131,8 +130,11 @@
     // so maybe parse unit and other stuff and just set a function on the element that calculates the length.
   }
 
+  /**
+   * tear down an element. remove all added behaviour.
+   * @param  {Object} obj DomElement
+   */
   function tearDownElement(obj) {
-
     if (DEBUG) console.log('[Scrollsnap] tearing down object: '+obj, declaration);
 
     // if the scroll snap attributes are applied on the body/html tag, use the doc for scroll events.
@@ -162,73 +164,86 @@
   var scrollStart = null;
 
   /**
+   * the last object receiving a scroll event
+   */
+  var lastObj, lastScrollObj;
+
+  /**
    * scroll handler
    * this is the callback for scroll events.
    */
   var handler = function(evt) {
+    // TODO: check this technique: http://ejohn.org/blog/learning-from-twitter/
 
     // use evt.target as target-element
-    var obj = evt.target,
-        scrollObj = getScrollObj(obj);
+    lastObj = evt.target;
+    lastScrollObj = getScrollObj(lastObj);
 
-    if (DEBUG) console.log('[Scrollsnap] scroll event on '+evt.target+'. start:'+scrollStart+' end:'+scrollObj.scrollTop);
+    // if currently animating, stop it. this prevents flickering.
+    if (animationFrame) {
+      // cross browser
+      if (!cancelAnimationFrame(animationFrame)) {
+        clearTimeout(animationFrame);
+      }
+    }
 
     // if a previous timeout exists, clear it.
     if (timeOutId) {
-
       // we only want to call a timeout once after scrolling..
       clearTimeout(timeOutId);
 
-      timeOutId = null;
     } else {
-
       // save new scroll start
-      scrollStart = scrollObj.scrollTop;
+      scrollStart = lastScrollObj.scrollTop;
 
       if (DEBUG) console.log('[Scrollsnap] saving new scroll start: '+scrollStart);
     }
 
-    // set a 30ms timeout for every scroll event.
-    // if we have new scroll events in that time, the previous timeouts are cleared.
-    // thus we can be sure that the timeout will be called 50ms after the last scroll event.
-    timeOutId = setTimeout(function() {
+    /* set a timeout for every scroll event.
+     * if we have new scroll events in that time, the previous timeouts are cleared.
+     * thus we can be sure that the timeout will be called 50ms after the last scroll event.
+     * this means a huge improvement in speed, as we just assign a timeout in the scroll event, which will be called only once (after scrolling is finished)
+     */
+    timeOutId = setTimeout(handlerDelayed, SCROLL_TIMEOUT);
+  };
 
-      // if we don't move a thing, we can ignore the timeout: if we did, there'd be another timeout added for scrollStart+1.
-      if(scrollStart == scrollObj.scrollTop) {
+  /**
+   * a delayed handler for scrolling.
+   * this will be called by setTimeout once, after scrolling is finished.
+   * @return {[type]} [description]
+   */
+  var handlerDelayed = function() {
+    // if we don't move a thing, we can ignore the timeout: if we did, there'd be another timeout added for scrollStart+1.
+    if(scrollStart == lastScrollObj.scrollTop) {
+      if (DEBUG) console.log('[Scrollsnap] ignore scroll timeout because not actually moving.');
 
-        if (DEBUG) console.log('[Scrollsnap] ignore scroll timeout because not actually moving.');
+      // ignore timeout
+      return;
+    }
 
-        // ignore timeout
-        return;
+    // detect direction of scroll. negative is up, positive is down.
+    var direction = (scrollStart - lastScrollObj.scrollTop > 0) ? -1 : 1,
 
-      }
+        // get the next snap-point to snap-to
+        snapPoint = getNextSnapPoint(lastScrollObj, lastObj, direction);
 
-      // detect direction of scroll. negative is up, positive is down.
-      var direction = (scrollStart - scrollObj.scrollTop > 0) ? -1 : 1,
+    // before doing the move, unbind the event handler (otherwise it calls itself kinda)
+    lastObj.removeEventListener('scroll', handler, false);
 
-          // get the next snap-point to snap-to
-          snapPoint = getNextSnapPoint(scrollObj, obj, direction);
+    if (DEBUG) console.log('[Scrollsnap] called scroll timeout. direction: '+direction+' - snap point: '+snapPoint+'. removed event listener. now smooth scrolling.');
 
-      // before doing the move, unbind the event handler
-      obj.removeEventListener('scroll', handler, false);
+    // smoothly move to the snap point
+    smoothScroll(lastScrollObj, snapPoint, function() {
+      // after moving to the snap point, rebind the scroll event handler
+      lastObj.addEventListener('scroll', handler, false);
 
-      if (DEBUG) console.log('[Scrollsnap] called scroll timeout. direction: '+direction+' - snap point: '+snapPoint+'. removed event listener. now smooth scrolling.');
+      if (DEBUG) console.log('[Scrollsnap] re-adding event listener on '+lastObj);
+    });
 
-      // smoothly move to the snap point
-      smoothScroll(scrollObj, snapPoint, null, function() {
+    // we just jumped to the snapPoint, so this will be our next scrollStart
+    scrollStart = snapPoint;
 
-        // after moving to the snap point, rebind the scroll event handler
-        obj.addEventListener('scroll', handler, false);
-
-        if (DEBUG) console.log('[Scrollsnap] re-adding event listener on '+obj);
-      });
-
-      // we just jumped to the snapPoint, so this will be our next scrollStart
-      scrollStart = snapPoint;
-
-      if (DEBUG) console.log('[Scrollsnap] saving scroll start: '+scrollStart);
-
-    }, SCROLL_TIMEOUT);
+    if (DEBUG) console.log('[Scrollsnap] saving scroll start: '+scrollStart);
   };
 
   /**
@@ -238,7 +253,6 @@
    * @return {[type]}           [description]
    */
   function getNextSnapPoint(scrollObj, obj, direction) {
-
     // get snap length
     var snapLength = obj.getSnapLength();
 
@@ -249,12 +263,10 @@
 
     // set target and bounds by direction
     if (direction === -1) {
-
       // when we go up, we floor the number to jump to the next snap-point in scroll direction
       nextPoint = Math.floor(currentPoint);
 
     } else {
-
       // go down, we ceil the number to jump to the next in view.
       nextPoint = Math.ceil(currentPoint);
     }
@@ -266,10 +278,9 @@
       // (if the point is 85% further than we are, don't jump..)
       nextPoint = Math.round(currentPoint);
 
-    } else if ((Math.abs(scrollStart-scrollObj.scrollTop) < 10) &&
+    } else if ((Math.abs(scrollStart-scrollObj.scrollTop) < 5) &&
                (Math.abs(initialPoint - currentPoint) < SNAP_CONSTRAINT) &&
                (Math.abs(nextPoint - currentPoint) > FIRST_CONSTRAINT)) {
-
       // constrain jumping to a point too high/low when scrolling just for a few pixels (less than 10 pixels) and (5% of scrollable length)
       nextPoint = Math.round(currentPoint);
 
@@ -292,7 +303,6 @@
    * @return {Object} returns an Object with the value and unit of the snap-point-y declaration
    */
   function parseSnapPointValue(declaration) {
-
     if (DEBUG) console.log('[Scrollsnap] parse declaration:', declaration);
 
     // run a regex to parse lengths
@@ -310,24 +320,18 @@
 
   /**
    * calc length of one snap
-   * @param  {Object} snapLengthUnit [description]
+   * @param  {Object} snapLengthUnit
    * @param  {Object} obj
-   * @return {Object}                [description]
+   * @return {Object}
    */
   function getSnapLength() {
-
     if (this.snapLengthUnit.unit == 'vh') {
-
       // when using vh, one snap is the length of vh / 100 * value
-      return Math.max(doc.documentElement.clientHeight, w.innerHeight || 0) / 100 * this.snapLengthUnit.value;
-
+      return Math.max(doc.documentElement.clientHeight, w.innerHeight || 1) / 100 * this.snapLengthUnit.value;
     } else if (this.snapLengthUnit.unit == '%') {
-
       // when using %, one snap is the length of element height / 100 * value
       return getHeight(this) / 100 * this.snapLengthUnit.value;
-
     } else {
-
       // when using px, one snap is the length of element height / value
       return getHeight(this) / this.snapLengthUnit.value;
     }
@@ -361,13 +365,27 @@
   function getScrollObj(obj) {
 
     if (obj == doc || obj == w) {
-
       return doc.querySelector('body');
     }
 
     return obj;
   }
 
+  /**
+   * calc the duration of the animation proportional to the distance travelled
+   * @param  {Number} start
+   * @param  {Number} end
+   * @return {Number}       scroll time in ms
+   */
+  function getDuration(start, end) {
+    var distance = Math.abs(start - end),
+        procDist = 100 / Math.max(doc.documentElement.clientHeight, w.innerHeight || 1) * distance,
+        duration = 100 / SCROLL_TIME * procDist;
+
+    if (DEBUG) console.log('[Scrollsnap] duration:'+duration, distance, procDist);
+
+    return Math.max(SCROLL_TIME / 1.5, Math.min(duration, SCROLL_TIME));
+  }
 
   /**
    * ease in out function thanks to:
@@ -390,7 +408,7 @@
    * @param  {Number} end      the end point of the scroll
    * @param  {Number} elapsed  the time elapsed from the beginning of the scroll
    * @param  {Number} duration the total duration of the scroll (default 500ms)
-   * @return {Number}          [description]
+   * @return {Number}          the next position
    */
   var position = function(start, end, elapsed, duration) {
 
@@ -403,6 +421,8 @@
       // return start + (end - start) * (elapsed / duration); // <-- this would give a linear scroll
   };
 
+  // a current animation frame
+  var animationFrame = null;
 
   /**
    * smoothScroll function by Alice Lietieur.
@@ -413,20 +433,17 @@
    * @param  {Number}   duration scroll duration
    * @param  {Function} callback called when the scrolling is finished
    */
-  var smoothScroll = function(obj, end, duration, callback) {
-
-      // TODO calculate duration based on max-distance/distance
-      duration = duration || SCROLL_TIME;
-
+  var smoothScroll = function(obj, end, callback) {
       var start = obj.scrollTop,
 
           clock = Date.now(),
 
           // get animation frame or a fallback
-          requestAnimationFrame = window.requestAnimationFrame ||
-                                  window.mozRequestAnimationFrame ||
-                                  window.webkitRequestAnimationFrame ||
-                                  function(fn){window.setTimeout(fn, 15);};
+          requestAnimationFrame = w.requestAnimationFrame ||
+                                  w.mozRequestAnimationFrame ||
+                                  w.webkitRequestAnimationFrame ||
+                                  function(fn){w.setTimeout(fn, 15);},
+          duration = getDuration(start, end);
 
       // setup the stepping function
       var step = function() {
@@ -439,10 +456,8 @@
 
         // check if we are over due
         if (elapsed > duration) {
-
           // is there a callback?
           if (typeof callback === 'function') {
-
             // stop execution and run the callback
             return callback(end);
           }
@@ -452,8 +467,7 @@
         }
 
         // use a new animation frame
-        requestAnimationFrame(step);
-
+        animationFrame = requestAnimationFrame(step);
       };
 
       // start the first step
