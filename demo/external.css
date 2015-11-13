@@ -1,0 +1,40 @@
+body {
+    scroll-snap-type: mandatory;
+    scroll-snap-points-y: repeat(100vh);
+    scroll-behaviour: smooth;
+    overflow: scroll;
+    height: 100vh;
+}
+
+html, body, section {
+    padding: 0;
+    margin: 0;
+    color: white;
+    font-family: sans-serif;
+}
+
+h1, h2, h3 {
+  margin: 2em auto;
+  text-align: center;
+}
+
+section {
+    min-height: 100vh;
+    width: 100%;
+    background: lightsalmon;
+    overflow: hidden;
+    position: relative;
+}
+
+section:nth-child(odd) {
+    background: lightseagreen;
+}
+
+section:after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  height: 50%;
+  width: 100%;
+  background: linear-gradient(-180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0.40) 100%);
+}
