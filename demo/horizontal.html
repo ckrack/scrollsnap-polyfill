@@ -6,6 +6,9 @@
     <title>CSS scroll snapping polyfill</title>
     <style type="text/css" media="screen">
 
+        * {
+            box-sizing: border-box;
+        }
         .container {
             scroll-snap-type: mandatory;
             scroll-snap-points-x: repeat(100vw);
@@ -13,6 +16,7 @@
             overflow: scroll;
             height: 100vh;
             width: 100%;
+            white-space: nowrap;
         }
 
         html, body, section {
@@ -33,6 +37,7 @@
             background: lightsalmon;
             overflow: hidden;
             position: relative;
+            display: inline-block;
         }
 
         section:nth-child(odd) {
@@ -52,11 +57,9 @@
 </head>
 <body>
     <div class="container">
-        <section><h1>Section 1</h1></section>
-        <section><h1>Section 2</h1></section>
-        <section><h1>Section 3</h1></section>
-        <section><h1>Section 4</h1></section>
+        <section><h1>Section 1</h1></section><section><h1>Section 2</h1></section><section><h1>Section 3</h1></section><section><h1>Section 4</h1></section>
     </div>
     <script src="vendor/philipwalton/polyfill.js"></script>
-    <script src="src/scrollsnap-polyfill.js"></script></body>
+    <script src="src/scrollsnap-polyfill.js"></script>
+</body>
 </html>
