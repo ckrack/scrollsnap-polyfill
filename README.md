@@ -29,6 +29,12 @@ Standards documentation
 * http://www.w3.org/TR/css-snappoints-1/
 * http://blog.gospodarets.com/css-scroll-snap/
 
-TODO
------------------------
-* Add support for both axis
+
+Limitations
+-----------
+
+Length units for ``scroll-snap-point-*: repeat()``, ``scroll-snap-coordinate`` and
+``scroll-snap-destination`` are limited to:
+    * vh/vw
+    * percentages
+    * pixels.
