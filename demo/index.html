@@ -12,6 +12,7 @@
             scroll-behaviour: smooth;
             overflow: scroll;
             height: 90vh;
+            margin-top: 10px;
         }
 
         html, body, section {
@@ -22,13 +23,17 @@
             background: #333;
         }
 
+        body {
+            padding-top: 5px;
+        }
+
         a {
             color: #fff;
         }
 
         h1, h2, h3 {
-          margin: 2em auto;
-          text-align: center;
+            margin: 2em auto;
+            text-align: center;
         }
 
         section {
@@ -44,12 +49,12 @@
         }
 
         section:after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          height: 50%;
-          width: 100%;
-          background: linear-gradient(-180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0.40) 100%);
+            content: '';
+            position: absolute;
+            bottom: 0;
+            height: 50%;
+            width: 100%;
+            background: linear-gradient(-180deg, rgba(0,0,0,0.20) 0%, rgba(0,0,0,0.40) 100%);
         }
 
     </style>
@@ -58,13 +63,13 @@
     <a href="horizontal.html">Horizontal scrolling</a>
     <a href="body.html">Body scrolling</a>
     <a href="external.html">External CSS</a>
+    <a href="coordinates.html">Horizontal with coordinates/destination</a>
     <div class="container">
         <section><h1>Section 1</h1></section>
         <section><h1>Section 2</h1></section>
         <section><h1>Section 3</h1></section>
         <section><h1>Section 4</h1></section>
     </div>
-    <p>this is the bottom.</p>
     <script src="vendor/philipwalton/polyfill.js"></script>
     <script src="src/scrollsnap-polyfill.js"></script>
 </body>

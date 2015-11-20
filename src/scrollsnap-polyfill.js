@@ -16,7 +16,16 @@
      * the snap-will go back to the closer snap-point.
      */
   var CONSTRAINT = 1-0.18,
+      /*
+       * if scrolling for one snap-point only,
+       * the scroll distance must be at least 5% of the scroll-width.
+       */
       FIRST_CONSTRAINT = 1-0.05,
+
+      /*
+       * minimum scroll distance in pixel
+       */
+      MIN_PX_CONSTRAINT = 5,
 
       /**
        * when scrolling for more than SNAP_CONSTRAINT snap points,
@@ -37,22 +46,14 @@
        * time for the smooth scrolling
        * @type {Number}
        */
-      SCROLL_TIME = 768,
-
-      /**
-       * turn debugging on/off
-       * @type {Boolean}
-       */
-      DEBUG = true;
+      SCROLL_TIME = 768;
 
   /**
    * Feature detect scroll-snap-type, if it exists then do nothing (return)
    */
   if ('scrollSnapType' in doc.documentElement.style ||
-      'webkitScrollSnapType' in doc.documentElement.style) {
-
-    if (DEBUG) console.log('[Scrollsnap] native support.');
-
+      'webkitScrollSnapType' in doc.documentElement.style ||
+      'msScrollSnapType' in doc.documentElement.style) {
     // just return void to stop executing the polyfill.
     return;
   }
@@ -62,7 +63,6 @@
    * @param  {array} rules rules found for the polyfill
    */
   function doMatched(rules) {
-
     // iterate over rules
     rules.each(function(rule) {
 
@@ -71,30 +71,25 @@
 
       // iterate over elements
       [].forEach.call(elements, function(obj) {
-
         // set up the behaviour
         setUpElement(obj, declaration);
-
       });
     });
   }
 
   /**
    * unDomatched is a callback for polyfill to undo any polyfilled behaviour
-   * @param  {[type]} rules [description]
+   * @param  {Object} rules
    */
   function undoUnmatched(rules) {
-
     // iterate over rules
     rules.each(function(rule) {
       var elements = doc.querySelectorAll(rule.getSelectors());
 
       // iterate over elements
       [].forEach.call(elements, function(item) {
-
         // tear down the behaviour
         tearDownElement(item);
-
       });
     });
   }
@@ -105,7 +100,13 @@
    * @param {Object} declaration CSS declarations
    */
   function setUpElement(obj, declaration) {
-    if (DEBUG) console.log('[Scrollsnap] setting up object: '+obj, declaration);
+    // if this is a scroll-snap element in a scroll snap container, attach to the container only.
+    if (typeof declaration['scroll-snap-coordinate'] !== 'undefined') {
+      // save declaration
+      obj.snapLengthUnit = parseSnapCoordValue(declaration);
+
+      return attachToScrollParent(obj);
+    }
 
     // if the scroll snap attributes are applied on the body/html tag, use the doc for scroll events.
     var tag = obj.tagName;
@@ -118,13 +119,14 @@
     obj.addEventListener('scroll', handler, false);
 
     // save declaration
-    obj.snapLengthUnit = parseSnapPointValue(declaration);
+    if (typeof declaration['scroll-snap-destination'] !== 'undefined') {
+      obj.snapLengthUnit = parseSnapCoordValue(declaration);
+    } else {
+      obj.snapLengthUnit = parseSnapPointValue(declaration);
+    }
 
-    // TODO: speed up the calculations.
-    // save length, recalc length on resize.
-    // but this would not take element resizing into account.
-    // if the container element resizes, the length would have to change.
-    // so maybe parse unit and other stuff and just set a function on the element that calculates the length.
+    // init possible elements
+    obj.snapElements = [];
   }
 
   /**
@@ -132,8 +134,6 @@
    * @param  {Object} obj DomElement
    */
   function tearDownElement(obj) {
-    if (DEBUG) console.log('[Scrollsnap] tearing down object: '+obj, declaration);
-
     // if the scroll snap attributes are applied on the body/html tag, use the doc for scroll events.
     var tag = obj.tagName;
 
@@ -145,6 +145,21 @@
     obj.removeEventListener('scroll', handler, false);
 
     obj.snapLengthUnit = null;
+    obj.snapElements = [];
+  }
+
+  /**
+   * attach a child-element onto a scroll-container
+   * @param  {Object} obj
+   */
+  function attachToScrollParent(obj) {
+    var attach = obj;
+    // iterate over parent elements
+    for ( ; obj && obj !== document; obj = obj.parentNode ) {
+      if (typeof obj.snapElements !== 'undefined') {
+        obj.snapElements.push(attach);
+      }
+    }
   }
 
   /**
@@ -169,7 +184,6 @@
    * this is the callback for scroll events.
    */
   var handler = function(evt) {
-    // TODO: check this technique: http://ejohn.org/blog/learning-from-twitter/
 
     // use evt.target as target-element
     lastObj = evt.target;
@@ -187,13 +201,10 @@
     if (timeOutId) {
       // we only want to call a timeout once after scrolling..
       clearTimeout(timeOutId);
-
     } else {
       // save new scroll start
       scrollStart = {y: lastScrollObj.scrollTop,
                      x: lastScrollObj.scrollLeft};
-
-      if (DEBUG) console.log('[Scrollsnap] saving new scroll start: '+scrollStart);
     }
 
     /* set a timeout for every scroll event.
@@ -211,8 +222,6 @@
   var handlerDelayed = function() {
     // if we don't move a thing, we can ignore the timeout: if we did, there'd be another timeout added for scrollStart+1.
     if(scrollStart.y == lastScrollObj.scrollTop && scrollStart.x == lastScrollObj.scrollLeft) {
-      if (DEBUG) console.log('[Scrollsnap] ignore scroll timeout because not actually moving.', scrollStart, lastScrollObj.scrollTop, lastScrollObj.scrollLeft);
-
       // ignore timeout
       return;
     }
@@ -220,34 +229,35 @@
     // detect direction of scroll. negative is up, positive is down.
     var direction = {y: (scrollStart.y - lastScrollObj.scrollTop > 0) ? -1 : 1,
                      x: (scrollStart.x - lastScrollObj.scrollLeft > 0) ? -1 : 1},
+        snapPoint;
 
-        // get the next snap-point to snap-to
-        snapPoint = getNextSnapPoint(lastScrollObj, lastObj, direction);
+    if (typeof lastScrollObj.snapElements !== 'undefined' && lastScrollObj.snapElements.length > 0) {
+      snapPoint = getNextElementSnapPoint(lastScrollObj, lastObj, direction);
+    } else {
+      // get the next snap-point to snap-to
+      snapPoint = getNextSnapPoint(lastScrollObj, lastObj, direction);
+    }
 
     // before doing the move, unbind the event handler (otherwise it calls itself kinda)
     lastObj.removeEventListener('scroll', handler, false);
-
-    if (DEBUG) console.log('[Scrollsnap] called scroll timeout. direction: ', direction, 'snap point: ', snapPoint,'removed event listener. now smooth scrolling.');
 
     // smoothly move to the snap point
     smoothScroll(lastScrollObj, snapPoint, function() {
       // after moving to the snap point, rebind the scroll event handler
       lastObj.addEventListener('scroll', handler, false);
-
-      if (DEBUG) console.log('[Scrollsnap] re-adding event listener on '+lastObj);
     });
 
     // we just jumped to the snapPoint, so this will be our next scrollStart
-    scrollStart = snapPoint;
-
-    if (DEBUG) console.log('[Scrollsnap] saving scroll start:', scrollStart);
+    if (!isNaN(snapPoint.x || !isNaN(snapPoint.y))) {
+      scrollStart = snapPoint;
+    }
   };
 
   /**
    * calculator for next snap-point
    * @param  {Object} obj       HTML element
    * @param  {integer} direction signed integer indicating the scroll direction
-   * @return {[type]}           [description]
+   * @return {Object}
    */
   function getNextSnapPoint(scrollObj, obj, direction) {
     // get snap length
@@ -279,16 +289,68 @@
     scrollTo.y = stayInBounds(0, getScrollHeight(scrollObj), scrollTo.y);
     scrollTo.x = stayInBounds(0, getScrollWidth(scrollObj), scrollTo.x);
 
-    if (DEBUG) console.log('[Scrollsnap] should scroll to:', scrollTo, top, left, currentPoint, nextPoint, snapLength);
-
     return scrollTo;
+  }
+
+
+  var currentIteratedObj = null,
+      currentIteration = 0;
+
+  function getNextElementSnapPoint(scrollObj, obj, direction) {
+    var l = obj.snapElements.length,
+        top = scrollObj.scrollTop,
+        left = scrollObj.scrollLeft,
+        // decide upon an iteration direction (favor -1, as 1 is default and will be applied when there is no direction on an axis)
+        primaryDirection = Math.min(direction.y, direction.x),
+        // get scrollable snap destination as offset
+        snapDest = {y: getYSnapLength(obj, obj.snapLengthUnit.y),
+                    x: getXSnapLength(obj, obj.snapLengthUnit.x)},
+        snapCoords = {y: 0, x: 0};
+
+
+    for(var i = currentIteration + primaryDirection; i<l && i >= 0; i = i+primaryDirection) {
+      currentIteratedObj = obj.snapElements[i];
+
+      // get objects snap coords by adding obj.top + obj.snaplength.y
+      snapCoords = {y: (currentIteratedObj.offsetTop - scrollObj.offsetTop) + getYSnapLength(currentIteratedObj, currentIteratedObj.snapLengthUnit.y),
+                    // & obj.left + obj.snaplength.x
+                    x: (currentIteratedObj.offsetLeft - scrollObj.offsetLeft) + getXSnapLength(currentIteratedObj, currentIteratedObj.snapLengthUnit.x)};
+
+      currentIteratedObj.snapCoords = snapCoords;
+      // check if object snappoint is "close" enough to scrollable snappoint
+
+      // not scrolled past element snap coords
+      if ((left <= snapCoords.x && left + getWidth(scrollObj) >= snapCoords.x &&
+           top <= snapCoords.y && top + getHeight(scrollObj) >= snapCoords.y)) {
+        // ok, we found a snap point.
+        currentIteration = i;
+        // stay in bounds (minimum: 0, maxmimum: absolute height)
+        return {y: stayInBounds(0, getScrollHeight(scrollObj), snapCoords.y - snapDest.y),
+                x: stayInBounds(0, getScrollWidth(scrollObj), snapCoords.x - snapDest.x)};
+      }
+    }
+    // no snap found, use first or last?
+    if (primaryDirection == 1 && i === l-1) {
+      currentIteration = l-1;
+      // the for loop stopped at the last element
+      return {y: stayInBounds(0, getScrollHeight(scrollObj), snapCoords.y - snapDest.y),
+              x: stayInBounds(0, getScrollWidth(scrollObj), snapCoords.x - snapDest.x)};
+    } else if (primaryDirection == -1 && i === 0) {
+      currentIteration = 0;
+      // the for loop stopped at the first element
+      return {y: stayInBounds(0, getScrollHeight(scrollObj), snapCoords.y - snapDest.y),
+              x: stayInBounds(0, getScrollWidth(scrollObj), snapCoords.x - snapDest.x)};
+    }
+    // stay in the same place
+    return {y: stayInBounds(0, getScrollHeight(scrollObj), obj.snapElements[currentIteration].snapCoords.y - snapDest.y),
+            x: stayInBounds(0, getScrollWidth(scrollObj), obj.snapElements[currentIteration].snapCoords.x - snapDest.x)};
   }
 
   /**
    * ceil or floor a number based on direction
-   * @param  {[type]} direction    [description]
-   * @param  {[type]} currentPoint [description]
-   * @return {[type]}              [description]
+   * @param  {Number} direction
+   * @param  {Number} currentPoint
+   * @return {Number}
    */
   function roundByDirection(direction, currentPoint) {
     if (direction === -1) {
@@ -315,11 +377,9 @@
       return Math.round(currentPoint);
 
     }
-    if ((Math.abs(scrollStart-currentScrollValue) < 5) &&
-               (Math.abs(initialPoint - currentPoint) < SNAP_CONSTRAINT) &&
-               (Math.abs(nextPoint - currentPoint) > FIRST_CONSTRAINT)) {
-      if (DEBUG) console.log('[Scrollsnap] round because of first constraint: ', currentScrollValue, scrollStart);
-
+    if ((Math.abs(scrollStart-currentScrollValue) < MIN_PX_CONSTRAINT) &&
+        (Math.abs(initialPoint - currentPoint) < SNAP_CONSTRAINT) &&
+        (Math.abs(nextPoint - currentPoint) > FIRST_CONSTRAINT)) {
       // constrain jumping to a point too high/low when scrolling just for a few pixels (less than 10 pixels) and (5% of scrollable length)
       return Math.round(currentPoint);
     }
@@ -347,8 +407,8 @@
     // regex to parse lengths
     var regex = /repeat\((\d+)(px|vh|vw|%)\)/g,
         // defaults
-        parsed = {y: {value: '%', unit: 1},
-                  x: {value: '%', unit: 1}},
+        parsed = {y: {value: 'px', unit: 0},
+                  x: {value: 'px', unit: 0}},
         result;
 
     // parse y value and unit
@@ -368,8 +428,38 @@
         parsed.x = {value: result[1], unit: result[2]};
       }
     }
-    if (DEBUG) console.log('[Scrollsnap] parse declaration:', declaration, parsed);
+    return parsed;
+  }
 
+  /**
+   * parse snap destination/coordinate values.
+   * @param  {Object} declaration
+   * @return {Object}
+   */
+  function parseSnapCoordValue(declaration) {
+    // regex to parse lengths
+    var regex = /(\d+)(px|%) (\d+)(px|%)/g,
+        // defaults
+        parsed = {y: {value: 'px', unit: 0},
+                  x: {value: 'px', unit: 0}},
+        parsable,
+        result;
+
+    if(typeof declaration['scroll-snap-coordinate'] !== 'undefined') {
+      parsable = 'scroll-snap-coordinate';
+    } else if (typeof declaration['scroll-snap-destination'] !== 'undefined') {
+      parsable = 'scroll-snap-destination';
+    }
+
+    // parse value and unit
+    if (parsable !== null) {
+      result = regex.exec(declaration[parsable]);
+      // if regexp fails, value is null
+      if (result !== null) {
+        parsed.y = {value: result[1], unit: result[2]};
+        parsed.x = {value: result[3], unit: result[4]};
+      }
+    }
     return parsed;
   }
 
@@ -390,7 +480,7 @@
       return getHeight(obj) / declaration.value;
     }
 
-    return 1;
+    return 0;
   }
 
   /**
@@ -410,30 +500,41 @@
       return getWidth(obj) / declaration.value;
     }
 
-    return 1;
+    return 0;
   }
 
   /**
-   * get an elements scrollHeight
+   * get an elements scrollable height
    * @param  {Object} obj
    * @return {Number}
    */
   function getScrollHeight(obj) {
-    if (DEBUG) console.log('[Scrollsnap] scrollheight:'+obj.scrollHeight);
-
     return obj.scrollHeight;
   }
 
+  /**
+   * get an elements scrollable width
+   * @param  {Object} obj
+   * @return {Number}
+   */
   function getScrollWidth(obj) {
-    if (DEBUG) console.log('[Scrollsnap] scrollheight:'+obj.scrollWidth);
-
     return obj.scrollWidth;
   }
 
+  /**
+   * get an elements height
+   * @param  {Object} obj
+   * @return {Number}
+   */
   function getHeight(obj) {
     return obj.offsetHeight;
   }
 
+  /**
+   * get an elements width
+   * @param  {Object} obj
+   * @return {Number}
+   */
   function getWidth(obj) {
     return obj.offsetWidth;
   }
@@ -445,7 +546,7 @@
    * @return {Object}
    */
   function getScrollObj(obj) {
-
+    // if the scroll container is body, the scrolling is invoked on window/doc.
     if (obj == doc || obj == w) {
       return doc.querySelector('body');
     }
@@ -464,8 +565,6 @@
         procDist = 100 / Math.max(doc.documentElement.clientHeight, w.innerHeight || 1) * distance,
         duration = 100 / SCROLL_TIME * procDist;
 
-    if (DEBUG) console.log('[Scrollsnap] duration:'+duration, distance, procDist);
-
     if (isNaN(duration)) {
       return 0;
     }
@@ -479,13 +578,9 @@
    * @param  {Number} t timing
    * @return {Number}   easing factor
    */
-    var easeInOutCubic = function(t) {
-        return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
-    };
-
-    var easeInCubic = function(t) {
-      return t*t*t;
-    };
+  var easeInCubic = function(t) {
+    return t*t*t;
+  };
 
 
   /**
@@ -497,14 +592,10 @@
    * @return {Number}          the next position
    */
   var position = function(start, end, elapsed, duration) {
-
       if (elapsed > duration) {
         return end;
       }
-
-      return start + (end - start) * easeInCubic(elapsed / duration); // <-- you can change the easing funtion there
-
-      // return start + (end - start) * (elapsed / duration); // <-- this would give a linear scroll
+      return start + (end - start) * easeInCubic(elapsed / duration);
   };
 
   // a current animation frame
@@ -531,8 +622,6 @@
                                 function(fn){w.setTimeout(fn, 15);},
         duration = Math.max(getDuration(start.y, end.y), getDuration(start.x, end.x));
 
-    if (DEBUG) console.log('[Scrollsnap] smooth scroll:', end, duration);
-
       // setup the stepping function
       var step = function() {
 
@@ -541,13 +630,11 @@
 
         // change position on y-axis if result is a number.
         if (!isNaN(end.y)) {
-          if (DEBUG) console.log('[Scrollsnap] smooth scroll Y:', end.y);
           obj.scrollTop = position(start.y, end.y, elapsed, duration);
         }
 
         // change position on x-axis if result is a number.
         if (!isNaN(end.x)) {
-          if (DEBUG) console.log('[Scrollsnap] smooth scroll X:', end.x);
           obj.scrollLeft = position(start.x, end.x, elapsed, duration);
         }
 
@@ -577,7 +664,7 @@
    * @see https://github.com/philipwalton/polyfill
    */
   var pf = new Polyfill({
-    declarations:["*scroll-snap-type:*", "*scroll-snap-point-y:*"]
+    declarations:["scroll-snap-type:*", "scroll-snap-point-y:*", "scroll-snap-coordinate:*", "scroll-snap-destination:*"]
   })
   .doMatched(doMatched)
   .undoUnmatched(undoUnmatched);
