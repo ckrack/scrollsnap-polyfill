@@ -11,7 +11,7 @@ If you are using the unbundled version, make sure to load polyfill.js first.
 
 ## Dependencies
 
-This uses `polyfill` by @philipwalton, which is bundled.
+This uses [Polyfill.js](hhttps://github.com/philipwalton/polyfill) `polyfill` by [@philipwalton](https://github.com/philipwalton), which is bundled.
 No other dependencies.
 
 
@@ -36,6 +36,7 @@ Limitations
 
 Length units for ``scroll-snap-point-*: repeat()``, ``scroll-snap-coordinate`` and
 ``scroll-snap-destination`` are limited to:
-    * vh/vw
-    * percentages
-    * pixels.
+
+* vh/vw
+* percentages
+* pixels.
