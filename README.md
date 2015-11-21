@@ -11,7 +11,7 @@ If you are using the unbundled version, make sure to load polyfill.js first.
 
 ## Dependencies
 
-This uses [Polyfill.js](hhttps://github.com/philipwalton/polyfill) `polyfill` by [@philipwalton](https://github.com/philipwalton), which is bundled.
+This uses [Polyfill.js](https://github.com/philipwalton/polyfill) by [@philipwalton](https://github.com/philipwalton), which is bundled.
 No other dependencies.
 
 
