@@ -548,6 +548,11 @@
   function getScrollObj(obj) {
     // if the scroll container is body, the scrolling is invoked on window/doc.
     if (obj == doc || obj == w) {
+      // firefox scrolls on doc.documentElement
+      if (doc.documentElement.scrollTop > 0 || doc.documentElement.scrollLeft > 0) {
+        return doc.documentElement;
+      }
+      // chrome scrolls on body
       return doc.querySelector('body');
     }
 
