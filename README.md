@@ -21,6 +21,7 @@ Browser Support
 This has been tested successfully in the following browsers:
 
 * Chrome 36
+* Firefox 24
 
 
 Standards documentation

@@ -35,7 +35,7 @@
       SNAP_CONSTRAINT = 2,
 
       /**
-       * time after which scrolling is considered finished.
+       * time in ms after which scrolling is considered finished.
        * the scroll timeouts are timed with this.
        * whenever a new scroll event is triggered, the previous timeout is deleted.
        * @type {Number}
