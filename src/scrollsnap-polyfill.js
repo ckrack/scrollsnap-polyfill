@@ -476,8 +476,8 @@
       // when using %, one snap is the length of element height / 100 * value
       return getHeight(obj) / 100 * declaration.value;
     } else {
-      // when using px, one snap is the length of element height / value
-      return getHeight(obj) / declaration.value;
+      // when using px, one snap is the value
+      return declaration.value;
     }
 
     return 0;
@@ -496,8 +496,8 @@
       // when using %, one snap is the length of element width / 100 * value
       return getWidth(obj) / 100 * declaration.value;
     } else {
-      // when using px, one snap is the length of element width / value
-      return getWidth(obj) / declaration.value;
+      // when using px, one snap is the value
+      return declaration.value;
     }
 
     return 0;
