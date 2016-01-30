@@ -1,4 +1,4 @@
-(function(w, doc, undefined) {
+window.makeScrollsnapPolyfill = (function(w, doc, undefined) {
   // Enable strict mode
   'use strict';
 
@@ -668,10 +668,13 @@
    * @type Polyfill
    * @see https://github.com/philipwalton/polyfill
    */
-  var pf = new Polyfill({
-    declarations:["scroll-snap-type:*", "scroll-snap-point-y:*", "scroll-snap-coordinate:*", "scroll-snap-destination:*"]
-  })
-  .doMatched(doMatched)
-  .undoUnmatched(undoUnmatched);
-
+  function makeScrollsnapPolyfill() {
+    var pf = new Polyfill({
+      declarations:["scroll-snap-type:*", "scroll-snap-point-y:*", "scroll-snap-coordinate:*", "scroll-snap-destination:*"]
+    })
+    .doMatched(doMatched)
+    .undoUnmatched(undoUnmatched);
+  }
+  makeScrollsnapPolyfill();
+  return makeScrollsnapPolyfill;
 }(window, document));
