@@ -320,8 +320,8 @@
       // check if object snappoint is "close" enough to scrollable snappoint
 
       // not scrolled past element snap coords
-      if ((left <= snapCoords.x && left + getWidth(scrollObj) >= snapCoords.x &&
-           top <= snapCoords.y && top + getHeight(scrollObj) >= snapCoords.y)) {
+      if ((left*primaryDirection <= snapCoords.x*primaryDirection &&
+           top*primaryDirection <= snapCoords.y*primaryDirection)) {
         // ok, we found a snap point.
         currentIteration = i;
         // stay in bounds (minimum: 0, maxmimum: absolute height)
