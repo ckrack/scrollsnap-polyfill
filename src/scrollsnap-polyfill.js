@@ -407,8 +407,8 @@
     // regex to parse lengths
     var regex = /repeat\((\d+)(px|vh|vw|%)\)/g,
         // defaults
-        parsed = {y: {value: 'px', unit: 0},
-                  x: {value: 'px', unit: 0}},
+        parsed = {y: {value: 0, unit: 'px'},
+                  x: {value: 0, unit: 'px'}},
         result;
 
     // parse y value and unit
@@ -440,8 +440,8 @@
     // regex to parse lengths
     var regex = /(\d+)(px|%) (\d+)(px|%)/g,
         // defaults
-        parsed = {y: {value: 'px', unit: 0},
-                  x: {value: 'px', unit: 0}},
+        parsed = {y: {value: 0, unit: 'px'},
+                  x: {value: 0, unit: 'px'}},
         parsable,
         result;
 
