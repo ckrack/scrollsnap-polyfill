@@ -46,7 +46,14 @@
        * time for the smooth scrolling
        * @type {Number}
        */
-      SCROLL_TIME = 768;
+      SCROLL_TIME = 768,
+
+      /**
+       * when user intentionally scrolls during smooth scroll,
+       * we need to cancel the smooth scroll to give them back control.
+       * @type {Number}
+       */
+      CANCEL_CONSTRAINT = 2;
 
   /**
    * Feature detect scroll-snap-type, if it exists then do nothing (return)
@@ -617,6 +624,9 @@
    */
   var smoothScroll = function(obj, end, callback) {
     var start = {y: obj.scrollTop, x: obj.scrollLeft},
+        
+        // remember the positions we intended to scroll to, we can check it against reality, to see if the user has scrolled against it
+        intended = { x: null, y: null },
 
         clock = Date.now(),
 
@@ -624,43 +634,106 @@
         requestAnimationFrame = w.requestAnimationFrame ||
                                 w.mozRequestAnimationFrame ||
                                 w.webkitRequestAnimationFrame ||
-                                function(fn){w.setTimeout(fn, 15);},
+                                function(fn){ return w.setTimeout(fn, 15);},
+        cancelAnimationFrame = w.cancelAnimationFrame ||
+                               w.mozCancelAnimationFrame ||
+                               w.webkitCancelAnimationFrame ||
+                               function(id){ w.clearTimeout(id);},
         duration = Math.max(getDuration(start.y, end.y), getDuration(start.x, end.x));
 
-      // setup the stepping function
-      var step = function() {
+    // if user scrolls manually, then cancel immediately
+    var cancel = function() {
+      obj.removeEventListener('scroll', scrolled, false);
+      if(animationFrame)
+      {
+        cancelAnimationFrame(animationFrame); 
+        animationFrame = null;
+      }
+      
+      // calculate timings
+      var elapsed = Date.now() - clock;
 
-        // calculate timings
-        var elapsed = Date.now() - clock;
+      // calculate mid point we cancel smoothScroll at
+      var mid = { x: start.x, y: start.y };
 
-        // change position on y-axis if result is a number.
-        if (!isNaN(end.y)) {
-          obj.scrollTop = position(start.y, end.y, elapsed, duration);
-        }
+      // change position on y-axis if result is a number.
+      if (!isNaN(end.y)) {
+        mid.y = position(start.y, end.y, elapsed, duration);
+      }
 
-        // change position on x-axis if result is a number.
-        if (!isNaN(end.x)) {
-          obj.scrollLeft = position(start.x, end.x, elapsed, duration);
-        }
+      // change position on x-axis if result is a number.
+      if (!isNaN(end.x)) {
+        mid.x = position(start.x, end.x, elapsed, duration);
+      }
 
-        // check if we are over due
-        if (elapsed > duration) {
-          // is there a callback?
-          if (typeof callback === 'function') {
-            // stop execution and run the callback
-            return callback(end);
-          }
+      if (typeof callback === 'function') {
+        // stop execution and run the callback
+        return callback(mid);
+      }
+    };
 
-          // stop execution
+    // setup listener for scroll check
+    var scrolled = function() {
+      // check y-axis if user has scrolled against our intended y-position
+      if (!isNaN(end.y)) {
+        var y = Math.abs(obj.scrollTop - intended.y);
+        if(y > CANCEL_CONSTRAINT) {
+          cancel();
           return;
         }
+      }
 
-        // use a new animation frame
-        animationFrame = requestAnimationFrame(step);
-      };
+        // check x-axis if user has scrolled against our intended x-position
+      if (!isNaN(end.x)) {
+        var x = Math.abs(obj.scrollLeft - intended.x);
+        if(x > CANCEL_CONSTRAINT) {
+          cancel();
+          return;
+        }
+      }
+    };
 
-      // start the first step
-      step();
+    // setup the stepping function
+    var step = function() {
+
+      // calculate timings
+      var elapsed = Date.now() - clock;
+
+      // change position on y-axis if result is a number.
+      if (!isNaN(end.y)) {
+        intended.y = position(start.y, end.y, elapsed, duration);
+        obj.scrollTop = intended.y;
+      }
+
+      // change position on x-axis if result is a number.
+      if (!isNaN(end.x)) {
+        intended.x = position(start.x, end.x, elapsed, duration);
+        obj.scrollLeft = intended.x;
+      }
+
+      // check if we are over due
+      if (elapsed > duration) {
+        obj.removeEventListener('scroll', scrolled, false);
+        
+        // is there a callback?
+        if (typeof callback === 'function') {
+          // stop execution and run the callback
+          return callback(end);
+        }
+
+        // stop execution
+        return;
+      }
+
+      // use a new animation frame
+      animationFrame = requestAnimationFrame(step);
+    };
+
+    // bind listener on scroll, to check if user is interfering
+    obj.addEventListener('scroll', scrolled, false);
+
+    // start the first step
+    step();
   };
 
   /**
