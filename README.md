@@ -28,7 +28,7 @@ Standards documentation
 -----------------------
 
 * http://www.w3.org/TR/css-snappoints-1/
-* http://blog.gospodarets.com/css-scroll-snap/
+* http://blog.gospodarets.com/css-scroll-snap
 
 
 Limitations
