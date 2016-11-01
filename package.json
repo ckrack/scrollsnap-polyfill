@@ -19,7 +19,7 @@
     "node-notifier": "^4.3.1"
   },
   "description": "Polyfill for css scroll snap behaviour",
-  "main": "dist/scrollsnap.polyfill.js",
+  "main": "dist/scrollsnap-polyfill.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
