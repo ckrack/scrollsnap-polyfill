@@ -583,8 +583,11 @@
    * @param  {Number} t timing
    * @return {Number}   easing factor
    */
-  var easeInCubic = function(t) {
-    return t*t*t;
+  var easeInOutCubic = function(t) {
+      t *= 2;
+      if (t < 1) return t*t*t * 0.5;
+      t -= 2;
+      return (t*t*t + 2) * 0.5;
   };
 
 
@@ -600,7 +603,7 @@
       if (elapsed > duration) {
         return end;
       }
-      return start + (end - start) * easeInCubic(elapsed / duration);
+      return start + (end - start) * easeInOutCubic(elapsed / duration);
   };
 
   // a current animation frame
