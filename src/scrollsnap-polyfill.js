@@ -58,23 +58,37 @@
     return;
   }
 
+
+  /**
+   * qsa is a helper function for quickly working with selecting from the DOM.
+   * @param  {string} sel css selector to match elements  against
+   * @param  {context} context DOMNode who's subtree will be searched. Falls back to document if not defined.
+   */
+  function qsa(sel, context) {
+    return (context || doc).querySelectorAll(sel)
+  }
+
   /**
    * doMatched is a callback for Polyfill to fill in the desired behaviour.
    * @param  {array} rules rules found for the polyfill
    */
   function doMatched(rules) {
-    // iterate over rules
-    rules.each(function(rule) {
 
-      var elements = doc.querySelectorAll(rule.getSelectors()),
-          declaration = rule.getDeclaration();
-
-      // iterate over elements
-      [].forEach.call(elements, function(obj) {
-        // set up the behaviour
-        setUpElement(obj, declaration);
-      });
+    var observer = new MutationObserver(function (mutations) {
+      mutations.forEach(function (mutation) {
+        if (mutation.addedNodes.length) {
+          rules.each(setUpMatchingElements);
+        }
+        [].forEach.call(mutation.removedNodes, tearDownElement)
+      })
     });
+
+    observer.observe(doc.body, {
+      subtree: true,
+      childList: true
+    });
+
+    rules.each(setUpMatchingElements);
   }
 
   /**
@@ -127,6 +141,31 @@
 
     // init possible elements
     obj.snapElements = [];
+  }
+
+  /**
+   * higher order function that makes setting up elements in a consistent manner easier
+   * @param {Object} declaration CSS declarations
+   * @return {function}
+   */
+  function setUpElementFromDeclaration(declaration) {
+
+    /**
+     * sets up an element for scroll-snap behavior based on earlier declaration
+     * @param {Object} obj         HTML element
+     */
+    return function (element) {
+      setUpElement(element, declaration)
+    }
+  }
+
+
+  function setUpMatchingElements(rule) {
+    var elements = qsa(rule.getSelectors(), doc),
+        declaration = rule.getDeclaration();
+
+    // iterate over elements
+    [].forEach.call(elements, setUpElementFromDeclaration(declaration));
   }
 
   /**
@@ -412,7 +451,7 @@
         result;
 
     // parse y value and unit
-    if (declaration['scroll-snap-points-y'] !== 'undefined') {
+    if (typeof declaration['scroll-snap-points-y'] !== 'undefined') {
       result = regex.exec(declaration['scroll-snap-points-y']);
       // if regexp fails, value is null
       if (result !== null) {
@@ -421,7 +460,7 @@
     }
 
     // parse x value and unit
-    if (declaration['scroll-snap-points-x'] !== 'undefined') {
+    if (typeof declaration['scroll-snap-points-x'] !== 'undefined') {
       result = regex.exec(declaration['scroll-snap-points-x']);
       // if regexp fails, value is null
       if (result !== null) {
