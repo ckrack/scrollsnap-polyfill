@@ -438,7 +438,7 @@
    */
   function parseSnapCoordValue(declaration) {
     // regex to parse lengths
-    var regex = /(\d+)(px|%) (\d+)(px|%)/g,
+    var regex = /(\d+(?:\.\d*)?)(px|%) (\d+(?:\.\d*))(px|%)/g,
         // defaults
         parsed = {y: {value: 0, unit: 'px'},
                   x: {value: 0, unit: 'px'}},
